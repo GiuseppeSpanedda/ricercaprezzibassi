@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ricerca Prezzi Bassi</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-2: #0c1930;
+      --panel: rgba(10, 19, 36, 0.78);
+      --panel-strong: rgba(10, 18, 35, 0.95);
+      --line: rgba(148, 177, 255, .14);
+      --text: #f3f7ff;
+      --muted: #9eb0d0;
+      --primary: #78a7ff;
+      --accent: #4de2c1;
+      --accent-2: #ffd66e;
+      --danger: #ff8e9e;
+      --shadow: 0 28px 80px rgba(0,0,0,.38);
+      --radius: 28px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(120, 167, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 100% 0%, rgba(77, 226, 193, 0.12), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(255, 214, 110, 0.08), transparent 20%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+    }
+
+    body::before,
+    body::after {
+      content: '';
+      position: fixed;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      opacity: .14;
+      z-index: 0;
+      animation: float 11s ease-in-out infinite alternate;
+    }
+    body::before { left: -110px; top: -90px; background: #78a7ff; }
+    body::after { right: -100px; bottom: -120px; background: #4de2c1; animation-delay: -4s; }
+
+    @keyframes float {
+      from { transform: translateY(0) scale(1); }
+      to { transform: translateY(24px) scale(1.08); }
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 18px 56px;
+    }
+
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius: var(--radius);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+    @media (max-width: 1040px) {
+      .hero { grid-template-columns: 1fr; }
+    }
+
+    .hero-main {
+      position: relative;
+      overflow: hidden;
+      padding: 30px;
+    }
+
+    .hero-main::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(130deg, rgba(120,167,255,.09), rgba(77,226,193,.07));
+      pointer-events: none;
+    }
+
+    .hero-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      align-items: center;
+    }
+    @media (max-width: 1040px) {
+      .hero-grid { grid-template-columns: 1fr; }
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 999px;
+      color: #d8e4ff;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 8px rgba(77,226,193,.12);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.15); opacity: .75; }
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 5.6vw, 64px);
+      line-height: .96;
+      letter-spacing: -.05em;
+      max-width: 11ch;
+    }
+
+    .lead {
+      margin: 18px 0 24px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.65;
+      max-width: 58ch;
+    }
+
+    .hero-points {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      color: #e5ecff;
+      font-size: 13px;
+    }
+
+    .stores {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 10px;
+    }
+    @media (max-width: 760px) {
+      .stores { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+
+    .store-badge {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 56px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+      color: #dbe5ff;
+      font-weight: 700;
+      letter-spacing: .02em;
+    }
+
+    .hero-art,
+    .feature-card,
+    .search-card,
+    .results-card,
+    .summary-card { overflow: hidden; }
+
+    .hero-art {
+      padding: 18px;
+      display: grid;
+      align-content: stretch;
+    }
+
+    .hero-art svg {
+      width: 100%;
+      height: 100%;
+      min-height: 310px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    @media (max-width: 980px) {
+      .features { grid-template-columns: 1fr; }
+    }
+
+    .feature-card {
+      padding: 22px;
+      position: relative;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(140deg, rgba(120,167,255,.08), rgba(77,226,193,.03));
+      pointer-events: none;
+    }
+
+    .feature-card > * { position: relative; z-index: 1; }
+
+    .feature-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      font-size: 20px;
+    }
+
+    .feature-card h3 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .feature-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    @media (max-width: 1100px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .search-card,
+    .results-card,
+    .summary-card {
+      padding: 22px;
+    }
+
+    .search-card {
+      margin-top: 20px;
+    }
+
+    .search-head,
+    .block-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .search-head h2,
+    .block-head h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 160px;
+      gap: 14px;
+      align-items: end;
+    }
+    @media (max-width: 780px) {
+      .search-row { grid-template-columns: 1fr; }
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input, button {
+      width: 100%;
+      border: none;
+      border-radius: 18px;
+      padding: 16px 16px;
+      font-size: 15px;
+      color: var(--text);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      outline: none;
+    }
+
+    input:focus {
+      border-color: rgba(120,167,255,.75);
+      box-shadow: 0 0 0 4px rgba(120,167,255,.16);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { cursor: default; opacity: .75; transform: none; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #7aa9ff, #9db8ff 54%, #d7ddff 110%);
+      color: #071425;
+      box-shadow: 0 18px 40px rgba(122,169,255,.28);
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+    }
+
+    .search-note {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .status {
+      min-height: 24px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .status.error { color: var(--danger); }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: white;
+      display: inline-block;
+      vertical-align: middle;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .results-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .empty-state {
+      padding: 22px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.03);
+      border: 1px dashed rgba(255,255,255,.12);
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .item {
+      position: relative;
+      padding: 18px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      border: 1px solid rgba(255,255,255,.08);
+      overflow: hidden;
+    }
+
+    .item::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(120,167,255,.08), transparent 42%, rgba(77,226,193,.06));
+      pointer-events: none;
+    }
+
+    .item > * { position: relative; z-index: 1; }
+
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .rank,
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      color: #e0e7ff;
+    }
+
+    .item h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+
+    .price {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      color: #93f3de;
+      margin-bottom: 12px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 640px) {
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+
+    .meta-box {
+      padding: 11px 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.035);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    .meta-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .meta-value {
+      color: #edf2ff;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .open-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+      color: #b8c8ff;
+      text-decoration: none;
+    }
+    .open-link:hover { text-decoration: underline; }
+
+    .summary-box {
+      min-height: 365px;
+      padding: 18px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
+      border: 1px solid rgba(255,255,255,.08);
+      white-space: pre-wrap;
+      line-height: 1.75;
+      color: #f2f5ff;
+    }
+
+    .summary-hero {
+      display: grid;
+      grid-template-columns: 1fr 86px;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .mini-illustration {
+      width: 86px;
+      height: 86px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(120,167,255,.18), rgba(77,226,193,.12));
+      border: 1px solid rgba(255,255,255,.08);
+      display: grid;
+      place-items: center;
+      font-size: 34px;
+    }
+
+    .results-meta strong { color: white; }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-main glass">
+        <div class="hero-grid">
+          <div>
+            <div class="eyebrow"><span class="dot"></span> Ricerca prezzi bassi e confronto offerte</div>
+            <h1>Le 10 offerte più economiche, in una sola schermata.</h1>
+            <p class="lead">
+              Scrivi il prodotto, lascia lavorare gli agenti e ottieni subito una selezione pulita delle offerte più convenienti con un riepilogo AI breve e leggibile.
+            </p>
+
+            <div class="hero-points">
+              <span class="pill">⚡ ricerca automatica</span>
+              <span class="pill">💸 top 10 per prezzo</span>
+              <span class="pill">🧠 riepilogo AI compatto</span>
+            </div>
+
+          </div>
+
+          <div class="hero-art glass">
+            <svg viewBox="0 0 420 340" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="g1" x1="18" y1="14" x2="401" y2="318" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#83AEFF" stop-opacity="0.9"/>
+                  <stop offset="1" stop-color="#4DE2C1" stop-opacity="0.8"/>
+                </linearGradient>
+                <linearGradient id="g2" x1="297" y1="59" x2="317" y2="241" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#FFE48D"/>
+                  <stop offset="1" stop-color="#FFB96D"/>
+                </linearGradient>
+              </defs>
+              <rect x="18" y="18" width="384" height="304" rx="28" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.10)"/>
+              <rect x="42" y="42" width="336" height="56" rx="18" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.07)"/>
+              <circle cx="72" cy="70" r="8" fill="#4DE2C1"/>
+              <circle cx="100" cy="70" r="8" fill="#83AEFF"/>
+              <circle cx="128" cy="70" r="8" fill="#FFD66E"/>
+              <rect x="156" y="58" width="188" height="24" rx="12" fill="rgba(255,255,255,0.06)"/>
+              <rect x="42" y="120" width="148" height="162" rx="24" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.07)"/>
+              <rect x="208" y="120" width="170" height="72" rx="24" fill="url(#g1)" opacity="0.92"/>
+              <rect x="208" y="210" width="170" height="72" rx="24" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.07)"/>
+              <rect x="66" y="148" width="100" height="14" rx="7" fill="rgba(255,255,255,0.12)"/>
+              <rect x="66" y="174" width="74" height="14" rx="7" fill="rgba(255,255,255,0.08)"/>
+              <rect x="66" y="206" width="88" height="38" rx="19" fill="url(#g2)"/>
+              <text x="90" y="231" fill="#1B233B" font-family="Arial, sans-serif" font-size="20" font-weight="700">€</text>
+              <text x="232" y="156" fill="#0B1530" font-family="Arial, sans-serif" font-size="18" font-weight="700">Top offerte</text>
+              <text x="232" y="177" fill="#102243" font-family="Arial, sans-serif" font-size="13">selezione automatica</text>
+              <text x="232" y="250" fill="#EEF5FF" font-family="Arial, sans-serif" font-size="18" font-weight="700">Riepilogo AI</text>
+              <text x="232" y="271" fill="#AFC1E8" font-family="Arial, sans-serif" font-size="13">solo dati essenziali</text>
+              <path d="M173 209C192 200 201 193 210 179" stroke="#83AEFF" stroke-width="5" stroke-linecap="round"/>
+              <path d="M173 226C190 228 198 229 209 234" stroke="#4DE2C1" stroke-width="5" stroke-linecap="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass" style="padding:20px; display:grid; gap:14px; align-content:start;">
+        <div class="feature-card glass" style="padding:18px; box-shadow:none;">
+          <div class="feature-head">
+            <div class="icon-box">🔎</div>
+            <h3>Ricerca unificata</h3>
+          </div>
+          <p>Gli agenti raccolgono offerte da più store e le unificano in una sola lista ordinata.</p>
+        </div>
+        <div class="feature-card glass" style="padding:18px; box-shadow:none;">
+          <div class="feature-head">
+            <div class="icon-box">📉</div>
+            <h3>Filtro automatico</h3>
+          </div>
+          <p>Il sistema seleziona da solo i risultati con prezzo più basso e mostra al massimo 10 offerte finali.</p>
+        </div>
+        <div class="feature-card glass" style="padding:18px; box-shadow:none;">
+          <div class="feature-head">
+            <div class="icon-box">✍️</div>
+            <h3>Summary leggero</h3>
+          </div>
+          <p>Il modello riceve solo i dati minimi indispensabili per restare più rapido e stabile.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="search-card glass">
+      <div class="search-head">
+        <div>
+          <h2>Cerca un prodotto</h2>
+          <div class="subtle">Nessuna configurazione da scegliere: il motore ordina automaticamente per prezzo crescente.</div>
+        </div>
+      </div>
+
+      <div class="search-row">
+        <div>
+          <label for="query">Prodotto o modello</label>
+          <input id="query" type="text" placeholder="Es. iPhone 16, RTX 5070 Ti, PS5 Slim, Galaxy S25" />
+        </div>
+        <div>
+          <button id="searchBtn" type="button" class="btn-primary">Trova offerte</button>
+        </div>
+      </div>
+
+      <div class="search-note">
+        <button id="clearBtn" type="button" class="btn-secondary" style="width:auto;padding:10px 14px;">Pulisci</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="features">
+      <article class="feature-card glass">
+        <div class="feature-head">
+          <div class="icon-box">1</div>
+          <h3>Gli agenti cercano</h3>
+        </div>
+        <p>La ricerca parte su più fonti e raccoglie le offerte disponibili con titolo, prezzo, condizione e spedizione.</p>
+      </article>
+      <article class="feature-card glass">
+        <div class="feature-head">
+          <div class="icon-box">2</div>
+          <h3>Il motore filtra</h3>
+        </div>
+        <p>I risultati vengono deduplicati, ordinati per prezzo crescente e ridotti alla top 10 finale.</p>
+      </article>
+      <article class="feature-card glass">
+        <div class="feature-head">
+          <div class="icon-box">3</div>
+          <h3>L’AI sintetizza</h3>
+        </div>
+        <p>Il riepilogo usa solo i campi essenziali, così il modello resta più veloce e il testo finale più pulito.</p>
+      </article>
+    </section>
+
+    <section class="main-grid">
+      <div class="results-card glass">
+        <div class="block-head">
+          <div>
+            <h2>Offerte trovate</h2>
+            <div id="resultsMeta" class="subtle">Nessun risultato disponibile.</div>
+          </div>
+        </div>
+        <div id="results" class="results-list">
+          <div class="empty-state">Inserisci un prodotto per vedere qui le 10 offerte con prezzo più basso trovate dagli agenti.</div>
+        </div>
+      </div>
+
+      <div class="summary-card glass">
+        <div class="summary-hero">
+          <div>
+            <div class="block-head" style="margin:0 0 6px;">
+              <h2>Riepilogo AI</h2>
+            </div>
+            <div class="subtle">Sintesi breve costruita sui soli dati essenziali dei risultati finali.</div>
+          </div>
+          <div class="mini-illustration">🧠</div>
+        </div>
+        <div id="summary" class="summary-box">Il riepilogo apparirà qui dopo la ricerca.</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const q = document.getElementById('query');
+    const searchBtn = document.getElementById('searchBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const statusBox = document.getElementById('status');
+    const resultsBox = document.getElementById('results');
+    const resultsMeta = document.getElementById('resultsMeta');
+    const summaryBox = document.getElementById('summary');
+
+    const escapeHtml = value => String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+
+    function setStatus(text, isError = false, loading = false) {
+      statusBox.className = 'status' + (isError ? ' error' : '');
+      statusBox.innerHTML = loading ? '<span class="spinner"></span>' + text : text;
+    }
+
+    function clearOutput() {
+      resultsMeta.textContent = 'Nessun risultato disponibile.';
+      resultsBox.innerHTML = '<div class="empty-state">Inserisci un prodotto per vedere qui le 10 offerte con prezzo più basso trovate dagli agenti.</div>';
+      summaryBox.textContent = 'Il riepilogo apparirà qui dopo la ricerca.';
+      setStatus('');
+    }
+
+    function renderResults(items) {
+      resultsBox.innerHTML = '';
+      if (!items || !items.length) {
+        resultsBox.innerHTML = '<div class="empty-state">Nessuna offerta trovata per questa ricerca.</div>';
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const div = document.createElement('article');
+        div.className = 'item';
+        div.innerHTML = `
+          <div class="item-top">
+            <span class="rank">#${index + 1} più conveniente</span>
+          </div>
+          <h3>${escapeHtml(item.title || 'Titolo non disponibile')}</h3>
+          <div class="price">${escapeHtml(item.priceText || 'Prezzo non disponibile')}</div>
+          <div class="meta-grid">
+            <div class="meta-box">
+              <div class="meta-label">Condizione</div>
+              <div class="meta-value">${escapeHtml(item.condition || 'Non indicata')}</div>
+            </div>
+            <div class="meta-box">
+              <div class="meta-label">Spedizione</div>
+              <div class="meta-value">${escapeHtml(item.shipping || 'Non indicata')}</div>
+            </div>
+          </div>
+          <a class="open-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Vai all'offerta ↗</a>`;
+        resultsBox.appendChild(div);
+      });
+    }
+
+    async function search() {
+      const query = q.value.trim();
+      if (!query) return setStatus('Inserisci un prodotto.', true);
+
+      clearOutput();
+      setStatus('Gli agenti stanno cercando le offerte più economiche e preparando il riepilogo AI...', false, true);
+      searchBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
+
+        const count = (data.results || []).length;
+        resultsMeta.innerHTML = `<strong>${count}</strong> offerte ordinate automaticamente dal prezzo più basso al più alto`;
+        renderResults(data.results || []);
+        summaryBox.textContent = data.summary || 'Riepilogo AI non disponibile.';
+        setStatus('Ricerca completata.');
+      } catch (error) {
+        setStatus(`Errore durante la ricerca: ${error.message}`, true);
+      } finally {
+        searchBtn.disabled = false;
+      }
+    }
+
+    searchBtn.addEventListener('click', search);
+    clearBtn.addEventListener('click', () => {
+      q.value = '';
+      clearOutput();
+    });
+    q.addEventListener('keydown', event => {
+      if (event.key === 'Enter') search();
+    });
+  </script>
+</body>
+</html>

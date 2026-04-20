@@ -1,0 +1,17 @@
+{
+  "name": "multi-connector-agent-node",
+  "version": "0.0.1",
+  "description": "Search Agent + Summary Agent con connettori e-commerce in Node.js",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "install:browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "playwright": "^1.52.0"
+  }
+}
