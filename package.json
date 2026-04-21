@@ -6,14 +6,15 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "postinstall": "playwright install chromium"
   },
   "engines": {
     "node": "20.x"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "playwright": "^1.52.0"
+    "express": "^4.22.1",
+    "playwright": "^1.59.1"
   }
 }
