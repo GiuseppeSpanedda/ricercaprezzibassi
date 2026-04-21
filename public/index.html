@@ -719,7 +719,7 @@
 
       function clearOutput() {
         resultsMeta.textContent = 'Nessun risultato disponibile.';
-        resultsBox.innerHTML = '<div class="empty-state">Inserisci un prodotto per vedere qui le 10 offerte con prezzo più basso trovate dagli agenti.</div>';
+        resultsBox.innerHTML = '<div class="empty-state">Inserisci un prodotto per vedere qui le offerte trovate.</div>';
         summaryBox.textContent = 'Il riepilogo apparirà qui dopo la ricerca.';
         setStatus('');
       }
@@ -779,26 +779,54 @@
         }
 
         clearOutput();
-        setStatus('Gli agenti stanno cercando le offerte più economiche e preparando il riepilogo AI...', false, true);
         searchBtn.disabled = true;
+        setStatus('Ricerca offerte in corso...', false, true);
+        summaryBox.textContent = 'Riepilogo AI in elaborazione...';
 
         try {
-          const response = await fetch('/api/search', {
+          const searchResponse = await fetch('/api/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query })
           });
 
-          const data = await response.json();
+          const searchData = await searchResponse.json();
 
-          if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
+          if (!searchResponse.ok) {
+            throw new Error(searchData.error || `HTTP ${searchResponse.status}`);
           }
 
-          const count = (data.results || []).length;
-          resultsMeta.innerHTML = `<strong>${count}</strong> offerte ordinate automaticamente dal prezzo più basso al più alto`;
-          renderResults(data.results || []);
-          summaryBox.textContent = data.summary || 'Riepilogo AI non disponibile.';
+          const rawResults = searchData.results || [];
+          resultsMeta.innerHTML = `<strong>${rawResults.length}</strong> risultati trovati`;
+          renderResults(rawResults);
+
+          if (!rawResults.length) {
+            summaryBox.textContent = 'Nessuna offerta utile trovata.';
+            setStatus('Ricerca completata.');
+            return;
+          }
+
+          setStatus('Risultati trovati. Riepilogo AI in elaborazione...', false, true);
+
+          const summaryResponse = await fetch('/api/summary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+          });
+
+          const summaryData = await summaryResponse.json();
+
+          if (!summaryResponse.ok) {
+            throw new Error(summaryData.error || `HTTP ${summaryResponse.status}`);
+          }
+
+          summaryBox.textContent = summaryData.summary || 'Riepilogo non disponibile.';
+
+          if (Array.isArray(summaryData.results) && summaryData.results.length) {
+            resultsMeta.innerHTML = `<strong>${summaryData.results.length}</strong> risultati selezionati`;
+            renderResults(summaryData.results);
+          }
+
           setStatus('Ricerca completata.');
         } catch (error) {
           console.error(error);
