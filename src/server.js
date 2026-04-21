@@ -9,33 +9,56 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const VPS_API_BASE_URL = process.env.VPS_API_BASE_URL;
-const VPS_API_KEY = process.env.VPS_API_KEY;
+const VPS_API_KEY = process.env.VPS_API_KEY || '';
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.resolve(__dirname, '../public')));
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+  res.json({
+    status: 'ok',
+    hasVpsUrl: Boolean(VPS_API_BASE_URL)
+  });
 });
 
-app.post('/api/search', async (req, res) => {
+async function proxyToVps(req, res, pathName) {
   try {
-    const response = await fetch(`${VPS_API_BASE_URL}/api/search`, {
+    if (!VPS_API_BASE_URL) {
+      return res.status(500).json({
+        error: 'VPS_API_BASE_URL non configurata su Hostinger.'
+      });
+    }
+
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (VPS_API_KEY) {
+      headers['x-api-key'] = VPS_API_KEY;
+    }
+
+    const response = await fetch(`${VPS_API_BASE_URL}${pathName}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': VPS_API_KEY
-      },
+      headers,
       body: JSON.stringify(req.body || {})
     });
 
     const text = await response.text();
     res.status(response.status).type('application/json').send(text);
   } catch (error) {
+    console.error(`Errore proxy ${pathName}:`, error);
     res.status(500).json({
       error: error.message || 'Errore proxy Hostinger.'
     });
   }
+}
+
+app.post('/api/search', async (req, res) => {
+  await proxyToVps(req, res, '/api/search');
+});
+
+app.post('/api/summary', async (req, res) => {
+  await proxyToVps(req, res, '/api/summary');
 });
 
 app.get('*', (_req, res) => {
