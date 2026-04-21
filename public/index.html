@@ -697,102 +697,131 @@
   </div>
 
   <script>
-    const q = document.getElementById('query');
-    const searchBtn = document.getElementById('searchBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const statusBox = document.getElementById('status');
-    const resultsBox = document.getElementById('results');
-    const resultsMeta = document.getElementById('resultsMeta');
-    const summaryBox = document.getElementById('summary');
+      const q = document.getElementById('query');
+      const searchBtn = document.getElementById('searchBtn');
+      const clearBtn = document.getElementById('clearBtn');
+      const statusBox = document.getElementById('status');
+      const resultsBox = document.getElementById('results');
+      const resultsMeta = document.getElementById('resultsMeta');
+      const summaryBox = document.getElementById('summary');
 
-    const escapeHtml = value => String(value ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
+      const escapeHtml = value => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
 
-    function setStatus(text, isError = false, loading = false) {
-      statusBox.className = 'status' + (isError ? ' error' : '');
-      statusBox.innerHTML = loading ? '<span class="spinner"></span>' + text : text;
-    }
-
-    function clearOutput() {
-      resultsMeta.textContent = 'Nessun risultato disponibile.';
-      resultsBox.innerHTML = '<div class="empty-state">Inserisci un prodotto per vedere qui le 10 offerte con prezzo più basso trovate dagli agenti.</div>';
-      summaryBox.textContent = 'Il riepilogo apparirà qui dopo la ricerca.';
-      setStatus('');
-    }
-
-    function renderResults(items) {
-      resultsBox.innerHTML = '';
-      if (!items || !items.length) {
-        resultsBox.innerHTML = '<div class="empty-state">Nessuna offerta trovata per questa ricerca.</div>';
-        return;
+      function setStatus(text, isError = false, loading = false) {
+        statusBox.className = 'status' + (isError ? ' error' : '');
+        statusBox.innerHTML = loading ? '<span class="spinner"></span>' + text : text;
       }
 
-      items.forEach((item, index) => {
-        const div = document.createElement('article');
-        div.className = 'item';
-        div.innerHTML = `
-          <div class="item-top">
-            <span class="rank">#${index + 1} più conveniente</span>
-          </div>
-          <h3>${escapeHtml(item.title || 'Titolo non disponibile')}</h3>
-          <div class="price">${escapeHtml(item.priceText || 'Prezzo non disponibile')}</div>
-          <div class="meta-grid">
-            <div class="meta-box">
-              <div class="meta-label">Condizione</div>
-              <div class="meta-value">${escapeHtml(item.condition || 'Non indicata')}</div>
+      function clearOutput() {
+        resultsMeta.textContent = 'Nessun risultato disponibile.';
+        resultsBox.innerHTML = '<div class="empty-state">Inserisci un prodotto per vedere qui le 10 offerte con prezzo più basso trovate dagli agenti.</div>';
+        summaryBox.textContent = 'Il riepilogo apparirà qui dopo la ricerca.';
+        setStatus('');
+      }
+
+      function normalizeItem(item) {
+        return {
+          title: item.title || 'Titolo non disponibile',
+          priceText: item.priceText || item.formattedPrice || item.price || 'Prezzo non disponibile',
+          condition: item.condition || item.subtitle || 'Non indicata',
+          shipping: item.shipping || item.shippingText || 'Non indicata',
+          url: item.url || item.link || '#',
+          source: item.source || item.store || ''
+        };
+      }
+
+      function renderResults(items) {
+        resultsBox.innerHTML = '';
+
+        if (!items || !items.length) {
+          resultsBox.innerHTML = '<div class="empty-state">Nessuna offerta trovata per questa ricerca.</div>';
+          return;
+        }
+
+        items.forEach((rawItem, index) => {
+          const item = normalizeItem(rawItem);
+
+          const div = document.createElement('article');
+          div.className = 'item';
+          div.innerHTML = `
+            <div class="item-top">
+              <span class="rank">#${index + 1} più conveniente</span>
+              ${item.source ? `<span class="chip">${escapeHtml(item.source)}</span>` : ''}
             </div>
-            <div class="meta-box">
-              <div class="meta-label">Spedizione</div>
-              <div class="meta-value">${escapeHtml(item.shipping || 'Non indicata')}</div>
+            <h3>${escapeHtml(item.title)}</h3>
+            <div class="price">${escapeHtml(item.priceText)}</div>
+            <div class="meta-grid">
+              <div class="meta-box">
+                <div class="meta-label">Condizione</div>
+                <div class="meta-value">${escapeHtml(item.condition)}</div>
+              </div>
+              <div class="meta-box">
+                <div class="meta-label">Spedizione</div>
+                <div class="meta-value">${escapeHtml(item.shipping)}</div>
+              </div>
             </div>
-          </div>
-          <a class="open-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Vai all'offerta ↗</a>`;
-        resultsBox.appendChild(div);
-      });
-    }
-
-    async function search() {
-      const query = q.value.trim();
-      if (!query) return setStatus('Inserisci un prodotto.', true);
-
-      clearOutput();
-      setStatus('Gli agenti stanno cercando le offerte più economiche e preparando il riepilogo AI...', false, true);
-      searchBtn.disabled = true;
-
-      try {
-        const response = await fetch('/api/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
+            <a class="open-link" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Vai all'offerta ↗</a>
+          `;
+          resultsBox.appendChild(div);
         });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || ('HTTP ' + response.status));
-
-        const count = (data.results || []).length;
-        resultsMeta.innerHTML = `<strong>${count}</strong> offerte ordinate automaticamente dal prezzo più basso al più alto`;
-        renderResults(data.results || []);
-        summaryBox.textContent = data.summary || 'Riepilogo AI non disponibile.';
-        setStatus('Ricerca completata.');
-      } catch (error) {
-        setStatus(`Errore durante la ricerca: ${error.message}`, true);
-      } finally {
-        searchBtn.disabled = false;
       }
-    }
 
-    searchBtn.addEventListener('click', search);
-    clearBtn.addEventListener('click', () => {
-      q.value = '';
-      clearOutput();
-    });
-    q.addEventListener('keydown', event => {
-      if (event.key === 'Enter') search();
-    });
+      async function search() {
+        const query = q.value.trim();
+        if (!query) {
+          setStatus('Inserisci un prodotto.', true);
+          return;
+        }
+
+        clearOutput();
+        setStatus('Gli agenti stanno cercando le offerte più economiche e preparando il riepilogo AI...', false, true);
+        searchBtn.disabled = true;
+
+        try {
+          const response = await fetch('/api/search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+          }
+
+          const count = (data.results || []).length;
+          resultsMeta.innerHTML = `<strong>${count}</strong> offerte ordinate automaticamente dal prezzo più basso al più alto`;
+          renderResults(data.results || []);
+          summaryBox.textContent = data.summary || 'Riepilogo AI non disponibile.';
+          setStatus('Ricerca completata.');
+        } catch (error) {
+          console.error(error);
+          setStatus(`Errore durante la ricerca: ${error.message}`, true);
+          resultsBox.innerHTML = '<div class="empty-state">La ricerca non è andata a buon fine.</div>';
+          summaryBox.textContent = 'Riepilogo non disponibile.';
+        } finally {
+          searchBtn.disabled = false;
+        }
+      }
+
+      searchBtn.addEventListener('click', search);
+
+      clearBtn.addEventListener('click', () => {
+        q.value = '';
+        clearOutput();
+      });
+
+      q.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          search();
+        }
+      });
   </script>
 </body>
 </html>
