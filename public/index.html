@@ -309,92 +309,172 @@
 </div>
 
 <script>
-    const q = document.getElementById('query');
-    const searchBtn = document.getElementById('searchBtn');
-    const statusBox = document.getElementById('status');
-    const resultsBox = document.getElementById('results');
-    const resultsCount = document.getElementById('resultsCount');
-    const summaryBox = document.getElementById('summary');
+        const q = document.getElementById('query');
+        const searchBtn = document.getElementById('searchBtn');
+        const statusBox = document.getElementById('status');
+        const resultsBox = document.getElementById('results');
+        const resultsCount = document.getElementById('resultsCount');
+        const summaryBox = document.getElementById('summary');
 
-    const escapeHtml = v => String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[char]));
 
-    function updateStatus(msg, showLoader = false) {
-      statusBox.style.display = msg ? 'flex' : 'none';
-      statusBox.innerHTML = `${showLoader ? '<div class="loader"></div>' : ''} <span>${msg}</span>`;
-    }
-
-    async function handleSearch() {
-      const query = q.value.trim();
-      if (!query) return;
-
-      searchBtn.disabled = true;
-      resultsBox.innerHTML = '';
-      summaryBox.innerHTML = 'Gli agenti stanno analizzando i listini...';
-      updateStatus('Scansione marketplace in corso...', true);
-
-      try {
-        // 1. Chiamata Ricerca
-        const searchRes = await fetch('/api/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
-        });
-        const searchData = await searchRes.json();
-        const items = searchData.results || [];
-
-        resultsCount.innerText = `${items.length} Match`;
-
-        if(items.length === 0) {
-            resultsBox.innerHTML = '<div style="text-align:center; padding:40px;">Nessuna offerta trovata. Prova a raffinare la ricerca.</div>';
-            summaryBox.innerHTML = 'Nessun dato disponibile per l\'analisi.';
-        } else {
-            renderOffers(items);
-
-            // 2. Chiamata Summary
-            updateStatus('Generazione analisi comparativa...', true);
-            const summaryRes = await fetch('/api/summary', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query })
-            });
-            const summaryData = await summaryRes.json();
-            summaryBox.innerHTML = summaryData.summary || 'Analisi completata, ma nessun dettaglio fornito.';
+        function escapeAttr(value) {
+          return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+          }[char]));
         }
 
-        updateStatus('Ricerca completata con successo.');
-      } catch (e) {
-        updateStatus('Errore di connessione. Riprova più tardi.');
-        summaryBox.innerHTML = 'Impossibile completare l\'analisi AI.';
-      } finally {
-        searchBtn.disabled = false;
-      }
-    }
+        function normalizeUrl(item) {
+          const rawUrl = String(
+            item.url ||
+            item.link ||
+            item.itemWebUrl ||
+            item.href ||
+            ''
+          ).trim();
 
-    function renderOffers(items) {
-      resultsBox.innerHTML = items.map((item, i) => {
-        // Gestione flessibile del link: prova 'url', poi 'link'
-        const finalUrl = item.url || item.link || '#';
+          if (!rawUrl) {
+            return '#';
+          }
 
-        return `
-        <div class="offer-card">
-          <div class="offer-info">
-            <h3>${escapeHtml(item.title)}</h3>
-            <div class="tag-container">
-              <span class="tag">Posizione #${i+1}</span>
-              <span class="tag">${escapeHtml(item.source || item.store || 'Store')}</span>
-              ${item.condition ? `<span class="tag">${escapeHtml(item.condition)}</span>` : ''}
-            </div>
-          </div>
-          <div class="offer-price">
-            <span class="price-value">${escapeHtml(item.priceText || item.price)}</span>
-            <a href="${escapeHtml(finalUrl)}" target="_blank" rel="noopener noreferrer" class="link-out">Vedi Dettagli ↗</a>
-          </div>
-        </div>
-      `}).join('');
-    }
+          if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+            return rawUrl;
+          }
 
-    searchBtn.addEventListener('click', handleSearch);
-    q.addEventListener('keydown', e => e.key === 'Enter' && handleSearch());
+          if (rawUrl.startsWith('//')) {
+            return `https:${rawUrl}`;
+          }
+
+          if (rawUrl.startsWith('/')) {
+            const source = String(item.source || item.store || '').toUpperCase();
+
+            if (source.includes('AMAZON')) {
+              return `https://www.amazon.it${rawUrl}`;
+            }
+
+            if (source.includes('EBAY')) {
+              return `https://www.ebay.it${rawUrl}`;
+            }
+          }
+
+          return rawUrl;
+        }
+
+        function updateStatus(msg, showLoader = false) {
+          statusBox.style.display = msg ? 'flex' : 'none';
+          statusBox.innerHTML = `${showLoader ? '<div class="loader"></div>' : ''}<span>${escapeHtml(msg)}</span>`;
+        }
+
+        async function handleSearch() {
+          const query = q.value.trim();
+
+          if (!query) {
+            updateStatus('Inserisci un prodotto da cercare.');
+            return;
+          }
+
+          searchBtn.disabled = true;
+          resultsBox.innerHTML = '';
+          summaryBox.innerHTML = 'Ricerca offerte in corso...';
+          updateStatus('Scansione marketplace in corso...', true);
+
+          try {
+            const searchRes = await fetch('/api/search', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query })
+            });
+
+            const searchData = await searchRes.json();
+
+            if (!searchRes.ok) {
+              throw new Error(searchData.error || `HTTP ${searchRes.status}`);
+            }
+
+            const items = searchData.results || [];
+
+            resultsCount.innerText = `${items.length} Match`;
+
+            if (items.length === 0) {
+              resultsBox.innerHTML = '<div style="text-align:center; padding:40px;">Nessuna offerta trovata. Prova a raffinare la ricerca.</div>';
+              summaryBox.innerHTML = 'Nessun dato disponibile per l’analisi.';
+              updateStatus('Ricerca completata.');
+              return;
+            }
+
+            renderOffers(items);
+
+            updateStatus('Generazione analisi comparativa...', true);
+
+            const summaryRes = await fetch('/api/summary', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query })
+            });
+
+            const summaryData = await summaryRes.json();
+
+            if (!summaryRes.ok) {
+              throw new Error(summaryData.error || `HTTP ${summaryRes.status}`);
+            }
+
+            summaryBox.innerHTML = escapeHtml(summaryData.summary || 'Analisi completata, ma nessun dettaglio fornito.');
+            updateStatus('Ricerca completata con successo.');
+          } catch (error) {
+            console.error(error);
+            updateStatus(`Errore: ${error.message}`);
+            summaryBox.innerHTML = 'Impossibile completare l’analisi AI.';
+          } finally {
+            searchBtn.disabled = false;
+          }
+        }
+
+        function renderOffers(items) {
+          resultsBox.innerHTML = items.map((item, i) => {
+            const finalUrl = normalizeUrl(item);
+            const hasValidUrl = finalUrl && finalUrl !== '#';
+
+            return `
+              <div class="offer-card">
+                <div class="offer-info">
+                  <h3>${escapeHtml(item.title)}</h3>
+                  <div class="tag-container">
+                    <span class="tag">Posizione #${i + 1}</span>
+                    <span class="tag">${escapeHtml(item.source || item.store || 'Store')}</span>
+                    ${item.condition ? `<span class="tag">${escapeHtml(item.condition)}</span>` : ''}
+                  </div>
+                </div>
+
+                <div class="offer-price">
+                  <span class="price-value">${escapeHtml(item.priceText || item.price)}</span>
+                  ${
+                    hasValidUrl
+                      ? `<a href="${escapeAttr(finalUrl)}" target="_blank" rel="noopener noreferrer" class="link-out">Vedi Dettagli ↗</a>`
+                      : `<span class="link-out" style="opacity:.55; cursor:not-allowed;">Link non disponibile</span>`
+                  }
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+
+        searchBtn.addEventListener('click', handleSearch);
+
+        q.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+            handleSearch();
+          }
+        });
 </script>
 </body>
 </html>
