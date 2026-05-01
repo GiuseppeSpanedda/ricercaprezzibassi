@@ -371,22 +371,26 @@
     }
 
     function renderOffers(items) {
-      resultsBox.innerHTML = items.map((item, i) => `
+      resultsBox.innerHTML = items.map((item, i) => {
+        // Gestione flessibile del link: prova 'url', poi 'link'
+        const finalUrl = item.url || item.link || '#';
+
+        return `
         <div class="offer-card">
           <div class="offer-info">
             <h3>${escapeHtml(item.title)}</h3>
             <div class="tag-container">
               <span class="tag">Posizione #${i+1}</span>
-              <span class="tag">${escapeHtml(item.source || 'Store')}</span>
+              <span class="tag">${escapeHtml(item.source || item.store || 'Store')}</span>
               ${item.condition ? `<span class="tag">${escapeHtml(item.condition)}</span>` : ''}
             </div>
           </div>
           <div class="offer-price">
             <span class="price-value">${escapeHtml(item.priceText || item.price)}</span>
-            <a href="${escapeHtml(item.url)}" target="_blank" class="link-out">Vedi Dettagli ↗</a>
+            <a href="${escapeHtml(finalUrl)}" target="_blank" rel="noopener noreferrer" class="link-out">Vedi Dettagli ↗</a>
           </div>
         </div>
-      `).join('');
+      `}).join('');
     }
 
     searchBtn.addEventListener('click', handleSearch);
