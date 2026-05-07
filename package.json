@@ -1,15 +1,18 @@
 {
-  "name": "ricercaprezzibassi-frontend",
-  "version": "1.0.0",
+  "name": "ricerca-prezzi-bassi",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
+  "description": "Ricerca prezzi bassi con frontend modulare, proxy OpenAI e ricerca ottimizzata su store ufficiali",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
     "express": "^4.22.1"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20"
   }
 }

@@ -1,70 +1,45 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { env } from './config/env.js';
+import { agentRoutes } from './routes/agentRoutes.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const publicDir = path.resolve(__dirname, '../public');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-const VPS_API_BASE_URL = process.env.VPS_API_BASE_URL;
-const VPS_API_KEY = process.env.VPS_API_KEY || '';
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.static(path.resolve(__dirname, '../public')));
+app.use(express.static(publicDir));
 
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
-    hasVpsUrl: Boolean(VPS_API_BASE_URL)
+    mode: 'server-agent-proxy',
+    model: env.openAiModel,
+    openaiConfigured: Boolean(env.openAiApiKey),
+    useWebSearch: env.openAiUseWebSearch,
+    resultsLimit: env.resultsLimit,
+    validateLinks: env.validateLinks,
+    strictLinkValidation: env.strictLinkValidation,
+    searchContextSize: env.openAiSearchContextSize,
+    toolChoice: env.openAiToolChoice,
+    textModeFallback: env.openAiTextModeFallback,
+    storeFallbackEnabled: env.storeFallbackEnabled
   });
 });
 
-async function proxyToVps(req, res, pathName) {
-  try {
-    if (!VPS_API_BASE_URL) {
-      return res.status(500).json({
-        error: 'VPS_API_BASE_URL non configurata su Hostinger.'
-      });
-    }
-
-    const headers = {
-      'Content-Type': 'application/json'
-    };
-
-    if (VPS_API_KEY) {
-      headers['x-api-key'] = VPS_API_KEY;
-    }
-
-    const response = await fetch(`${VPS_API_BASE_URL}${pathName}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(req.body || {})
-    });
-
-    const text = await response.text();
-    res.status(response.status).type('application/json').send(text);
-  } catch (error) {
-    console.error(`Errore proxy ${pathName}:`, error);
-    res.status(500).json({
-      error: error.message || 'Errore proxy Hostinger.'
-    });
-  }
-}
-
-app.post('/api/search', async (req, res) => {
-  await proxyToVps(req, res, '/api/search');
-});
-
-app.post('/api/summary', async (req, res) => {
-  await proxyToVps(req, res, '/api/summary');
-});
+app.use('/api/agent', agentRoutes);
 
 app.get('*', (_req, res) => {
-  res.sendFile(path.resolve(__dirname, '../public/index.html'));
+  res.sendFile(path.join(publicDir, 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Frontend proxy avviato sulla porta ${PORT}`);
+app.use(errorHandler);
+
+app.listen(env.port, () => {
+  console.log(`App avviata sulla porta ${env.port}`);
+  console.log(`Modalità: server-agent-proxy | modello: ${env.openAiModel}`);
 });
