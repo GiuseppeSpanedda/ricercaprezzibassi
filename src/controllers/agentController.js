@@ -16,8 +16,8 @@ export async function searchOffers(req, res, next) {
     }
 
     const primaryRawData = await openAiAgentService.searchOffers(query);
-	const response = await resultService.prepareSearchResponse(rawData, query);    
-	let usedStoreFallback = false;
+    let response = await resultService.prepareSearchResponse(primaryRawData, query);
+    let usedStoreFallback = false;
 
     // La decisione di fare fallback va presa DOPO i filtri server-side:
     // il modello può restituire molti candidati grezzi, ma dopo esclusione comparatori,
@@ -25,7 +25,7 @@ export async function searchOffers(req, res, next) {
     if (env.storeFallbackEnabled && response.results.length < env.resultsLimit) {
       const fallbackRawData = await openAiAgentService.searchFallbackOffers(query);
       const mergedRawData = mergeAgentResponses([primaryRawData, fallbackRawData]);
-      response = await resultService.prepareSearchResponse(mergedRawData);
+      response = await resultService.prepareSearchResponse(mergedRawData, query);
       usedStoreFallback = true;
     }
 

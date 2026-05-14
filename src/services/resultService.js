@@ -5,20 +5,100 @@ import { getHostname, normalizeUrl } from '../utils/url.js';
 import { looksLikeJsonPayload, safeJsonParse } from '../utils/json.js';
 import { LinkValidationService } from './linkValidationService.js';
 
+const ACCESSORY_TERMS = [
+  'accessorio',
+  'accessori',
+  'custodia',
+  'cover',
+  'case',
+  'pellicola',
+  'vetro temperato',
+  'cavo',
+  'cavi',
+  'caricatore',
+  'charger',
+  'alimentatore',
+  'adattatore',
+  'adapter',
+  'supporto',
+  'stand',
+  'staffa',
+  'ricambio',
+  'ricambi',
+  'parti di ricambio',
+  'batteria sostitutiva',
+  'manuale',
+  'garanzia',
+  'assicurazione'
+];
+
+const GENERIC_QUERY_TERMS = new Set([
+  'prezzo',
+  'prezzi',
+  'basso',
+  'bassi',
+  'migliore',
+  'migliori',
+  'offerta',
+  'offerte',
+  'sconto',
+  'sconti',
+  'comprare',
+  'acquistare',
+  'nuovo',
+  'nuova',
+  'usato',
+  'usata',
+  'ricondizionato',
+  'italia',
+  'online',
+  'store',
+  'negozio',
+  'negozi',
+  'con',
+  'per',
+  'del',
+  'della',
+  'dello',
+  'dei',
+  'degli',
+  'delle',
+  'una',
+  'uno',
+  'the',
+  'and',
+  'for'
+]);
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function queryTokens(query) {
+  return normalizeText(query)
+    .replace(/[^a-z0-9]+/gi, ' ')
+    .split(/\s+/)
+    .map(token => token.trim())
+    .filter(token => token.length >= 2 && !GENERIC_QUERY_TERMS.has(token));
+}
+
 export class ResultService {
   constructor() {
     this.linkValidationService = new LinkValidationService();
   }
 
-  async prepareSearchResponse(rawAgentResponse) {
+  async prepareSearchResponse(rawAgentResponse, query = '') {
     const unpacked = this.#unpackAgentResponse(rawAgentResponse);
     const rawResults = Array.isArray(unpacked?.results) ? unpacked.results : [];
     const warnings = Array.isArray(unpacked?.warnings) ? [...unpacked.warnings] : [];
 
     const normalized = this.#dedupeResults(this.#normalizeResults(rawResults));
-	const filtered = normalized.filter(item => !this.#isBlockedResult(item));
-	const relevant = filtered.filter(item => !this.#isIrrelevantResult(item, query));
-	const preSorted = this.#sortByPrice(relevant).slice(0, Math.max(env.searchCandidateLimit, env.resultsLimit));
+    const filtered = normalized.filter(item => !this.#isBlockedResult(item));
+    const relevant = filtered.filter(item => !this.#isIrrelevantResult(item, query));
+    const preSorted = this.#sortByPrice(relevant).slice(0, Math.max(env.searchCandidateLimit, env.resultsLimit));
 
     let validated = preSorted;
 
@@ -45,13 +125,14 @@ export class ResultService {
 
     return {
       results: sorted,
-      summary: cleanedSummary || this.buildQualityPriceSummary('', sorted),
+      summary: cleanedSummary || this.buildQualityPriceSummary(query, sorted),
       warnings: [...new Set(warnings.filter(Boolean))],
       debug: env.nodeEnv === 'development'
         ? {
             rawResults: rawResults.length,
             normalized: normalized.length,
             afterPolicyFilter: filtered.length,
+            afterRelevanceFilter: relevant.length,
             returned: sorted.length
           }
         : undefined
@@ -187,14 +268,43 @@ export class ResultService {
 
   #isBlockedResult(item) {
     const hostname = getHostname(item.url);
-    const source = String(item.source || '').toLowerCase();
-    const title = String(item.title || '').toLowerCase();
+    const source = normalizeText(item.source);
+    const title = normalizeText(item.title);
 
     if (hostname && BLOCKED_DOMAINS.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))) {
       return true;
     }
 
-    return BLOCKED_SOURCE_TERMS.some(term => source.includes(term) || title.includes(term));
+    return BLOCKED_SOURCE_TERMS.some(term => source.includes(normalizeText(term)) || title.includes(normalizeText(term)));
+  }
+
+  #isIrrelevantResult(item, query) {
+    const normalizedQuery = normalizeText(query);
+    const title = normalizeText(item.title);
+    const source = normalizeText(item.source);
+    const searchableText = `${title} ${source}`;
+
+    if (!normalizedQuery || !title) return false;
+
+    const userAskedForAccessory = ACCESSORY_TERMS.some(term => normalizedQuery.includes(normalizeText(term)));
+    const resultLooksAccessory = ACCESSORY_TERMS.some(term => title.includes(normalizeText(term)));
+
+    if (!userAskedForAccessory && resultLooksAccessory) {
+      return true;
+    }
+
+    const tokens = queryTokens(query);
+    if (tokens.length === 0) return false;
+
+    const matchedTokens = tokens.filter(token => searchableText.includes(token));
+
+    // Per query con un solo elemento distintivo, almeno quello deve comparire nel titolo/store.
+    if (tokens.length === 1) {
+      return matchedTokens.length === 0;
+    }
+
+    // Per query più lunghe evitiamo risultati completamente scollegati.
+    return matchedTokens.length === 0;
   }
 
   #sortByPrice(results) {
