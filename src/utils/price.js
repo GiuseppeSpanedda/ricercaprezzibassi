@@ -12,11 +12,28 @@ export function parsePrice(value) {
   let normalized = raw;
 
   if (hasComma && hasDot) {
+    // Entrambi presenti: l'ultimo è il separatore decimale
     normalized = raw.lastIndexOf(',') > raw.lastIndexOf('.')
-      ? raw.replace(/\./g, '').replace(',', '.')
-      : raw.replace(/,/g, '');
+      ? raw.replace(/\./g, '').replace(',', '.')   // formato IT: 1.499,00
+      : raw.replace(/,/g, '');                      // formato EN: 1,499.00
   } else if (hasComma) {
-    normalized = raw.replace(',', '.');
+    // Solo virgola: potrebbe essere decimale (599,99) o migliaia (1,200)
+    const parts = raw.split(',');
+    if (parts.length === 2 && parts[1].length === 3) {
+      // Es. "1,200" → separatore migliaia → rimuovi la virgola
+      normalized = raw.replace(',', '');
+    } else {
+      // Es. "599,99" → decimale → converti in punto
+      normalized = raw.replace(',', '.');
+    }
+  } else if (hasDot) {
+    // Solo punto: potrebbe essere decimale (147.00, 1499.00) o migliaia (1.200)
+    const parts = raw.split('.');
+    if (parts.length === 2 && parts[1].length === 3 && parts[0].length <= 3) {
+      // Es. "1.200" o "1.499" → separatore migliaia → rimuovi il punto
+      normalized = raw.replace('.', '');
+    }
+    // Altrimenti lascia com'è: "147.00", "1499.00" sono già corretti
   }
 
   const parsed = Number.parseFloat(normalized);
